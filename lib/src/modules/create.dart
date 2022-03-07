@@ -155,37 +155,33 @@ void _generateTargetFiles({
   for (FileSystemEntity entity in files) {
     FileSystemEntityType type = entity.statSync().type;
     String path = entity.path.split('\\').last;
-    if (path.startsWith('.')) {
-      File(entity.path).deleteSync(recursive: true);
-    } else {
-      if (type == FileSystemEntityType.file) {
-        if (entity.path.endsWith('.dart')) {
-          _replace(
-            path: entity.path,
-            regex: templateName,
-            replace: projectName,
-          );
-        }
-        if (path == 'pubspec.yaml') {
-          _replace(
-            path: entity.path,
-            regex: regProjectName,
-            replace: 'name: $projectName',
-          );
-          _replace(
-            path: entity.path,
-            regex: regDescription,
-            replace: 'description: $replaceDescription',
-          );
-          _replace(
-            path: entity.path,
-            regex: regVersion,
-            replace: 'version: $replaceVersion+1',
-          );
-        }
-      } else if (type == FileSystemEntityType.directory) {
-        _generateTargetFiles(projectName: projectName, filePath: entity.path);
+    if (type == FileSystemEntityType.file) {
+      if (entity.path.endsWith('.dart')) {
+        _replace(
+          path: entity.path,
+          regex: templateName,
+          replace: projectName,
+        );
       }
+      if (path == 'pubspec.yaml') {
+        _replace(
+          path: entity.path,
+          regex: regProjectName,
+          replace: 'name: $projectName',
+        );
+        _replace(
+          path: entity.path,
+          regex: regDescription,
+          replace: 'description: $replaceDescription',
+        );
+        _replace(
+          path: entity.path,
+          regex: regVersion,
+          replace: 'version: $replaceVersion+1',
+        );
+      }
+    } else if (type == FileSystemEntityType.directory) {
+      _generateTargetFiles(projectName: projectName, filePath: entity.path);
     }
   }
 }
@@ -216,10 +212,14 @@ void _updateTargetFiles({
   targetDirLib.deleteSync(recursive: true);
   Directory targetDirPub = Directory('$targetDir\\pubspec.yaml');
   targetDirPub.deleteSync(recursive: true);
+  Directory targetDirGit = Directory('$targetDir\\.gitignore');
+  targetDirGit.deleteSync(recursive: true);
   Directory targetDirCode = Directory('$targetDir\\$templateName\\lib');
   targetDirCode.renameSync('$targetDir\\lib');
   File targetDirTempPub = File('$targetDir\\$templateName\\pubspec.yaml');
   targetDirTempPub.renameSync('$targetDir\\pubspec.yaml');
+  File targetDirTempGit = File('$targetDir\\$templateName\\.gitignore');
+  targetDirTempGit.renameSync('$targetDir\\.gitignore');
   Directory targetDirTemp = Directory('$targetDir\\$templateName');
   targetDirTemp.deleteSync(recursive: true);
 
