@@ -94,7 +94,7 @@ void _create(
     stderr.addStream(process.stderr);
     process.exitCode.then((value) {
       if (value == 0) {
-        _fetchTemplateProject(projectName, targetDir);
+        _fetchTemplateProject(projectName, packageName!, targetDir);
       }
     });
   });
@@ -119,7 +119,8 @@ List<String> _createFlutterArgs(
 }
 
 ///下载模板文件
-void _fetchTemplateProject(String projectName, Directory targetDir) {
+void _fetchTemplateProject(
+    String projectName, String packageName, Directory targetDir) {
   print('\n👉 Download template from git repository...\n');
   Process.start('git', ['clone', appTemplateUrl, templateName],
           workingDirectory: targetDir.path)
@@ -133,12 +134,13 @@ void _fetchTemplateProject(String projectName, Directory targetDir) {
           projectName: projectName,
           filePath: '${targetDir.path}\\$templateName',
         );
-        _modifyTargetFiles(
+        _updateTargetFiles(
           projectName: projectName,
           targetDir: targetDir.path,
         );
-        _updateTargetFiles(
+        _modifyTargetFiles(
           projectName: projectName,
+          packageName: packageName,
           targetDir: targetDir.path,
         );
       }
@@ -189,6 +191,7 @@ void _generateTargetFiles({
 ///配置文件
 void _modifyTargetFiles({
   required String projectName,
+  required String packageName,
   required String targetDir,
 }) {
   print('\n👉 Generate Android configuration \n');
@@ -196,9 +199,7 @@ void _modifyTargetFiles({
     modifyAppName(replaceAppName, ModifyPlatform.all,
         targetDir: Directory(targetDir));
   }
-  modifyBuildGradle(targetDir);
-
-  ///todo 开启混淆
+  _modifyAndroidPackageName(packageName, Directory(targetDir));
   print(green('\n👉  Generate ios configuration \n'));
   configIOSInfo(Directory(targetDir));
 }
@@ -208,18 +209,64 @@ void _updateTargetFiles({
   required String projectName,
   required String targetDir,
 }) {
+  //覆盖lib
   Directory targetDirLib = Directory('$targetDir\\lib');
   targetDirLib.deleteSync(recursive: true);
-  Directory targetDirPub = Directory('$targetDir\\pubspec.yaml');
-  targetDirPub.deleteSync(recursive: true);
-  Directory targetDirGit = Directory('$targetDir\\.gitignore');
-  targetDirGit.deleteSync(recursive: true);
   Directory targetDirCode = Directory('$targetDir\\$templateName\\lib');
   targetDirCode.renameSync('$targetDir\\lib');
+
+  //覆盖pubspec.yaml
+  Directory targetDirPub = Directory('$targetDir\\pubspec.yaml');
+  targetDirPub.deleteSync(recursive: true);
   File targetDirTempPub = File('$targetDir\\$templateName\\pubspec.yaml');
   targetDirTempPub.renameSync('$targetDir\\pubspec.yaml');
+
+  //覆盖gitignore
+  Directory targetDirGit = Directory('$targetDir\\.gitignore');
+  targetDirGit.deleteSync(recursive: true);
   File targetDirTempGit = File('$targetDir\\$templateName\\.gitignore');
   targetDirTempGit.renameSync('$targetDir\\.gitignore');
+
+  //覆盖build.gradle(project)
+  File targetDirBuild = File('$targetDir\\android\\build.gradle');
+  targetDirBuild.deleteSync(recursive: true);
+  File targetDirTempBuild =
+      File('$targetDir\\$templateName\\android\\build.gradle');
+  targetDirTempBuild.renameSync('$targetDir\\android\\build.gradle');
+
+  //覆盖build.gradle(app)
+  File targetDirAppBuild = File('$targetDir\\android\\app\\build.gradle');
+  targetDirAppBuild.deleteSync(recursive: true);
+  File targetDirTempAppBuild =
+      File('$targetDir\\$templateName\\android\\app\\build.gradle');
+  targetDirTempAppBuild.renameSync('$targetDir\\android\\app\\build.gradle');
+
+  //覆盖AndroidManifest.xml
+  File targetDirManifest =
+      File('$targetDir\\android\\app\\src\\main\\AndroidManifest.xml');
+  targetDirManifest.deleteSync(recursive: true);
+  File targetDirTempManifest = File(
+      '$targetDir\\$templateName\\android\\app\\src\\main\\AndroidManifest.xml');
+  targetDirTempManifest
+      .renameSync('$targetDir\\android\\app\\src\\main\\AndroidManifest.xml');
+
+  //增加android混淆文件
+  File targetDirTempProguard =
+      File('$targetDir\\$templateName\\android\\app\\app-proguard-rules.pro');
+  targetDirTempProguard
+      .renameSync('$targetDir\\android\\app\\app-proguard-rules.pro');
+
+  //增加推送混淆文件
+  File targetDirTempAliProguard = File(
+      '$targetDir\\$templateName\\android\\app\\ali-push-proguard-rules.pro');
+  targetDirTempAliProguard
+      .renameSync('$targetDir\\android\\app\\ali-push-proguard-rules.pro');
+
+  //增加多渠道配置文件
+  File targetDirConfig =
+      File('$targetDir\\$templateName\\android\\config.json');
+  targetDirConfig.renameSync('$targetDir\\android\\config.json');
+
   Directory targetDirTemp = Directory('$targetDir\\$templateName');
   targetDirTemp.deleteSync(recursive: true);
 
@@ -335,25 +382,26 @@ void _modifyAndroidAppName(String appName, Directory targetDir) {
   }
 }
 
-/// 修改Android project build.grade --> 修改grade镜像
-void modifyBuildGradle(String targetDir) {
-  Directory directory = Directory('$targetDir\\android');
-  File projectBuildConfigFile = File('${directory.path}\\build.gradle');
-  try {
-    List lines = projectBuildConfigFile.readAsStringSync().split('\n');
-    for (var i = lines.length - 1; i >= 0; i--) {
-      String line = lines[i];
-      if (line.contains("repositories {")) {
-        lines.insert(i + 1, '''
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://maven.aliyun.com/repository/jcenter' }
-        maven { url 'http://maven.aliyun.com/nexus/content/groups/public' }
-        ''');
+void _modifyAndroidPackageName(String packageName, Directory targetDir) {
+  String filePath = '${targetDir.path}\\android\\app\\build.gradle';
+  File file = File(filePath);
+  if (file.existsSync()) {
+    try {
+      List lines = file.readAsStringSync().split('\n');
+      for (int i = 0; i < lines.length; i++) {
+        String line = lines[i];
+        if (line.contains("applicationId")) {
+          lines[i] = "applicationId \"$packageName\"";
+          break;
+        }
       }
+      print('✨ Successfully modify android package name \n');
+      file.writeAsStringSync(lines.join('\n'));
+    } catch (e) {
+      print(red('Failed to read build.gradle file'));
     }
-    projectBuildConfigFile.writeAsStringSync(lines.join('\n'));
-  } catch (e) {
-    print("Failed to modify repositories");
+  } else {
+    print(red('build.gradle not found'));
   }
 }
 
