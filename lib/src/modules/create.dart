@@ -267,6 +267,12 @@ void _updateTargetFiles({
       File('$targetDir\\$templateName\\android\\config.json');
   targetDirConfig.renameSync('$targetDir\\android\\config.json');
 
+  //增加YardiApplication.java
+  File targetDirApplication = File(
+      '$targetDir\\$templateName\\android\\app\\src\\main\\java\\tech\\ucoon\\flutter_app_template\\YardiApplication.java');
+  targetDirApplication.renameSync(
+      '$targetDir\\android\\app\\src\\main\\java\\tech\\ucoon\\flutter_app_template\\YardiApplication.java');
+
   Directory targetDirTemp = Directory('$targetDir\\$templateName');
   targetDirTemp.deleteSync(recursive: true);
 
