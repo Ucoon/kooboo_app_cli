@@ -136,6 +136,7 @@ void _fetchTemplateProject(
         );
         _updateTargetFiles(
           projectName: projectName,
+          packageName: packageName,
           targetDir: targetDir.path,
         );
         _modifyTargetFiles(
@@ -207,6 +208,7 @@ void _modifyTargetFiles({
 ///更新文件
 void _updateTargetFiles({
   required String projectName,
+  required String packageName,
   required String targetDir,
 }) {
   //覆盖lib
@@ -270,8 +272,19 @@ void _updateTargetFiles({
   //增加YardiApplication.java
   File targetDirApplication = File(
       '$targetDir\\$templateName\\android\\app\\src\\main\\java\\tech\\ucoon\\flutter_app_template\\YardiApplication.java');
+  List<String> packageNames = packageName.split('.');
+  String packagePath = packageNames.join('\\\\');
   targetDirApplication.renameSync(
-      '$targetDir\\android\\app\\src\\main\\java\\tech\\ucoon\\flutter_app_template\\YardiApplication.java');
+      '$targetDir\\android\\app\\src\\main\\java\\$packagePath\\$projectName\\YardiApplication.java');
+
+  //增加network_security_config.xml
+  File targetDirNetwork = File(
+      '$targetDir\\$templateName\\android\\app\\src\\main\\res\\xml\\network_security_config.xml');
+  Directory tempDir =
+      Directory('$targetDir\\android\\app\\src\\main\\res\\xml');
+  tempDir.create();
+  targetDirNetwork.renameSync(
+      '$targetDir\\android\\app\\src\\main\\res\\xml\\network_security_config.xml');
 
   Directory targetDirTemp = Directory('$targetDir\\$templateName');
   targetDirTemp.deleteSync(recursive: true);
